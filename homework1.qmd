@@ -236,10 +236,18 @@ ggplot(distribution_long, aes(x=year, y=num, fill = manufacturer))+
 
 ```{r}
 #What is the oldest plane (specified by the tailnum variable) that flew from New York City airports in 2013?
-
-
+#I am not sure how the tailnum indicates the age of the plane. I assume the smaller the number the older the plane?
+planes_dist <-flights %>% 
+  group_by(tailnum) %>%
+  count() %>% 
+  print()
+#Then the oldest one is N0EGMQ.
 
 #How many airplanes that flew from New York City are included in the planes table?
+inner_join(x=planes_dist, y=planes, by = "tailnum")
+
+#There are 3322 rows in the joint table.
+#Therefore, of all the 4044 planes that flew from New York City, 3322 of them are included in the planes table.
 ```
 
 ## Problem 7: Use the `nycflights13` to answer the following questions:
@@ -248,6 +256,16 @@ ggplot(distribution_long, aes(x=year, y=num, fill = manufacturer))+
     -   For each airline, plot the median arrival delay for each month and origin airport.
 
 ```{r}
+#What is the median arrival delay on a month-by-month basis in each airport?
+med_delay <- flights %>% 
+  group_by(month,origin) %>% 
+  summarize(med_delay = median(arr_delay, na.rm = TRUE))
+print(med_delay)
+  
+#For each airline, plot the median arrival delay for each month and origin airport.
+ggplot(med_delay, aes(x=month, y=med_delay, group = origin, fill = origin))+
+  geom_col(position = "dodge")+
+  scale_x_continuous(breaks = 1:12)
 
 ```
 
