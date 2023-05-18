@@ -1,7 +1,7 @@
 ---
 title: "Homerwork 1"
-author: "YOUR NAME HERE"
-date: 2023-05-14
+author: "Nianyu Li"
+date: 2023-05-18
 format: 
   docx: default
   html:
@@ -39,30 +39,34 @@ library(skimr)
 
 # Had an arrival delay of two or more hours (> 120 minutes)
 flights %>% 
-  filter(arr_delay>120)
+  filter(arr_delay>=120)
 
 # Flew to Houston (IAH or HOU)
 flights %>% 
-  filter(dest == "IAH"|"HOU")
+  filter(dest == "IAH"| dest == "HOU")
 
 # Were operated by United (`UA`), American (`AA`), or Delta (`DL`)
 flights %>% 
-  filter(carrier == "UA"|"AA"|"DL")
+  filter(carrier == "UA"
+         |carrier == "AA"
+         |carrier == "DL")
 #Can also use
-fliter %>% 
-  fillter(carrier %in% c("UA", "AA", "DL"))
+flights %>% 
+  filter(carrier %in% c("UA", "AA", "DL"))
 
 # Departed in summer (July, August, and September)
 flights %>% 
-  filter(month == "July"|"August"|"Sep")
+  filter(month == 7
+         |month == 8
+         |month == 9)
   
 # Arrived more than two hours late, but didn't leave late
 flights %>% 
-  filter(arr_delay>120, dep_delay=0)
+  filter(arr_delay>120 & dep_delay==0)
 
 # Were delayed by at least an hour, but made up over 30 minutes in flight
-flight %>% 
-  filter(arr_delay)
+flights %>% 
+  filter(dep_delay>=60 & arr_delay<30)
 ```
 
 ## Problem 2: What months had the highest and lowest proportion of cancelled flights? Interpret any seasonal patterns. To determine if a flight was cancelled use the following code
@@ -77,6 +81,27 @@ flight %>%
 
 # What months had the highest and lowest % of cancelled flights?
 
+#Calculate total # of flights each month
+total_flights <- flights %>%
+  group_by(month) %>% 
+  count(name = "total_flights")
+
+#Calculate total # of flights each month that is cancelled
+cancelled_flights <- flights %>%
+  filter(is.na(dep_time)) %>% 
+  group_by(month) %>%
+  count(name = "cancelled_flights")
+
+#Join the two new tables and calculate the cancel rate, arrange the column in descending order.
+cancel_rate <-
+  inner_join(x = total_flights,
+           y = cancelled_flights,
+           by = "month") %>% 
+  mutate(cancel_rate = cancelled_flights/total_flights) %>% arrange(desc(cancel_rate))
+
+print(cancel_rate)
+
+#From the output we can tell that Feburary has the highest proportion of cancelled flights (5.05%), and October has the lowest (0.82%)
 ```
 
 ## Problem 3: What plane (specified by the `tailnum` variable) traveled the most times from New York City airports in 2013? Please `left_join()` the resulting table with the table `planes` (also included in the `nycflights13` package).
@@ -84,18 +109,74 @@ flight %>%
 For the plane with the greatest number of flights and that had more than 50 seats, please create a table where it flew to during 2013.
 
 ```{r}
+#Count the travel times for each flights
+travel_times <- flights %>%
+  filter(!is.na(tailnum)) %>% 
+  group_by(tailnum) %>%
+  count(name = "travel_times")
 
+#Left join it with the table planes
+planes_travel_times <- left_join(x = travel_times, y = planes, by = "tailnum") %>%
+  filter(seats > 50) %>% 
+  arrange(desc(travel_times))
 
+print(planes_travel_times)
+#We can tell that the most travelled plane's tailnumber is N328AA
+
+#Create a table for the most travelled plane
+most_travelled_flight <- flights %>% 
+  filter(tailnum == "N328AA") %>% 
+  group_by(dest) %>% 
+  count() %>% 
+  arrange(desc(n))
+
+print(most_travelled_flight)
 ```
 
 ## Problem 4: The `nycflights13` package includes a table (`weather`) that describes the weather during 2013. Use that table to answer the following questions:
 
-    -   What is the distribution of temperature (`temp`) in July 2013? Identify any important outliers in terms of the `wind_speed` variable.
+    -   What is the distribution of temperature (`temp`) in July 2013?
+    Identify any important outliers in terms of the `wind_speed` variable.
     -   What is the relationship between `dewp` and `humid`?
     -   What is the relationship between `precip` and `visib`?
 
 ```{r}
+#What is the distribution of temperature (`temp`) in July 2013?
 
+#Filter data for July 2013
+temp_July <- weather %>% 
+  filter(month == 7) %>% 
+  select(temp)
+
+#Distribution
+ggplot(temp_July, aes(x=temp)) +
+  geom_histogram(aes(y = ..density..), fill = "grey")+
+  geom_density(color = NA, fill = "lightblue", alpha = 0.5)+
+  labs(title = "Distribution of Temprature in July 2013")
+
+#Temperature in July 2013 is roughly normally distributed.
+
+#Find the outliers for "windspeed" variable
+ggplot(weather, aes(x=wind_speed)) +
+  geom_boxplot()
+
+skimr::skim(weather$wind_speed)
+
+#The outlier is 1048.361, which is also the 100 percentile.
+
+#What is the relationship between `dewp` and `humid`?
+ggplot(weather, aes(x=dewp, y=humid))+
+  geom_point()+
+  geom_smooth()
+
+#Positively correlated: when dewp level raises, it becomes more humid.
+
+#What is the relationship between `precip` and `visib`?
+ggplot(weather, aes(x=precip, y=visib))+
+  geom_point()+
+  geom_smooth()
+
+#Pattern not obvious: there is no relationship between `precip` and `visib`.
 ```
 
 ## Problem 5: Use the `flights` and `planes` tables to answer the following questions:
@@ -105,6 +186,30 @@ For the plane with the greatest number of flights and that had more than 50 seat
     -   Has the distribution of manufacturer changed over time as reflected by the airplanes flying from NYC in 2013? (Hint: you may need to use case_when() to recode the manufacturer name and collapse rare vendors into a category called Other.)
 
 ```{r}
+#How many planes have a missing date of manufacture?
+planes %>% 
+  filter(is.na(year)) %>% 
+  count(name = "plane_missing_manu_date")
+
+#What are the five most common manufacturers?
+common_manufacturers <- planes %>%
+  group_by(manufacturer) %>% 
+  count() %>% 
+  arrange(desc(n)) %>% 
+  head(., 5)
+print(common_manufacturers)
+
+#Has the distribution of manufacturer changed over time as reflected by the airplanes flying from NYC in 2013?
+
+#Recode the manufacturer name and collapse rare vendors into a category called Other
+planes_1 <- planes %>%  
+  mutate(manufacturer = ifelse(manufacturer %in% 
+                       c("BOEING","AIRBUS INDUSTRIE",
+                         "BOMBARDIER INC", "AIRBUS", "EMBRAER"),
+                       manufacturer, "OTHERS"))
+
+#Plot the distribution changes overtime
+
 
 ```
 
@@ -114,7 +219,11 @@ For the plane with the greatest number of flights and that had more than 50 seat
     -   How many airplanes that flew from New York City are included in the planes table?
 
 ```{r}
+#What is the oldest plane (specified by the tailnum variable) that flew from New York City airports in 2013?
 
+
+
+#How many airplanes that flew from New York City are included in the planes table?
 ```
 
 ## Problem 7: Use the `nycflights13` to answer the following questions:
@@ -218,7 +327,7 @@ The age gaps dataset includes "gender" columns, which always contain the values 
 The following is a data dictionary of the variables used
 
 | variable            | class     | description                                                                                             |
-|:--------------------|:----------|:--------------------------------------------------------------------------------------------------------|
+|:-----------|:-----------|:----------------------------------------------|
 | movie_name          | character | Name of the film                                                                                        |
 | release_year        | integer   | Release year                                                                                            |
 | director            | character | Director of the film                                                                                    |
