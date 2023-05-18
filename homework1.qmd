@@ -208,9 +208,25 @@ planes_1 <- planes %>%
                          "BOMBARDIER INC", "AIRBUS", "EMBRAER"),
                        manufacturer, "OTHERS"))
 
-#Plot the distribution changes overtime
+#Create a table of the distribution in each year
+distribution_long <- planes_1 %>% 
+  group_by(year) %>%
+  count(manufacturer, name = "num") %>% 
+print(distribution_long)
 
+#Maybe showing the percentages would be clearer but I can't really figure out how to create the graph using a wider form. I tried.
+distribution_wide <- pivot_wider(distribution_long,
+                                 names_from = "manufacturer",
+                                 values_from = "num")
+print(distribution_wide)
 
+#Plot the distribution to see the trend
+ggplot(distribution_long, aes(x=year, y=num, fill = manufacturer))+
+  geom_bar(stat="identity")
+
+#We can tell that there are indeed changes in distribution of manufacturers. 
+#For example, BOEING and AIRBUS INDUSTRIE raised around 2000.
+#Or "BOMBARDIER INC" and "EMBRAER" starting to take up market shares after 2000.
 ```
 
 ## Problem 6: Use the `flights` and `planes` tables to answer the following questions:
