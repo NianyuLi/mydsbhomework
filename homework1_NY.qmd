@@ -1,7 +1,7 @@
 ---
 title: "Homerwork 1"
-author: "YOUR NAME HERE"
-date: 2023-05-14
+author: "Nianyu Li"
+date: 2023-05-21
 format: 
   docx: default
   html:
@@ -20,7 +20,6 @@ editor: visual
 library(tidyverse)
 library(nycflights13)
 library(skimr)
-
 ```
 
 # Data Manipulation
@@ -38,21 +37,35 @@ library(skimr)
 #| label: problem-1
 
 # Had an arrival delay of two or more hours (> 120 minutes)
-
+flights %>% 
+  filter(arr_delay>=120)
 
 # Flew to Houston (IAH or HOU)
-
+flights %>% 
+  filter(dest == "IAH"| dest == "HOU")
 
 # Were operated by United (`UA`), American (`AA`), or Delta (`DL`)
-
+flights %>% 
+  filter(carrier == "UA"
+         |carrier == "AA"
+         |carrier == "DL")
+#Can also use
+flights %>% 
+  filter(carrier %in% c("UA", "AA", "DL"))
 
 # Departed in summer (July, August, and September)
-  
+flights %>% 
+  filter(month == 7
+         |month == 8
+         |month == 9)
   
 # Arrived more than two hours late, but didn't leave late
-
+flights %>% 
+  filter(arr_delay>120 & dep_delay==0)
 
 # Were delayed by at least an hour, but made up over 30 minutes in flight
+flights %>% 
+  filter(dep_delay>=60 & arr_delay<30)
 ```
 
 ## Problem 2: What months had the highest and lowest proportion of cancelled flights? Interpret any seasonal patterns. To determine if a flight was cancelled use the following code
@@ -67,6 +80,27 @@ library(skimr)
 
 # What months had the highest and lowest % of cancelled flights?
 
+#Calculate total # of flights each month
+total_flights <- flights %>%
+  group_by(month) %>% 
+  count(name = "total_flights")
+
+#Calculate total # of flights each month that is cancelled
+cancelled_flights <- flights %>%
+  filter(is.na(dep_time)) %>% 
+  group_by(month) %>%
+  count(name = "cancelled_flights")
+
+#Join the two new tables and calculate the cancel rate, arrange the column in descending order.
+cancel_rate <-
+  inner_join(x = total_flights,
+           y = cancelled_flights,
+           by = "month") %>% 
+  mutate(cancel_rate_percent = round(cancelled_flights/total_flights*100,2)) %>% arrange(desc(cancel_rate_percent))
+
+print(cancel_rate)
+
+#From the output we can tell that Feburary has the highest proportion of cancelled flights (5.05%), and October has the lowest (0.82%)
 ```
 
 ## Problem 3: What plane (specified by the `tailnum` variable) traveled the most times from New York City airports in 2013? Please `left_join()` the resulting table with the table `planes` (also included in the `nycflights13` package).
@@ -74,18 +108,74 @@ library(skimr)
 For the plane with the greatest number of flights and that had more than 50 seats, please create a table where it flew to during 2013.
 
 ```{r}
+#Count the travel times for each flights
+travel_times <- flights %>%
+  filter(!is.na(tailnum)) %>% 
+  group_by(tailnum) %>%
+  count(name = "travel_times")
 
+#Left join it with the table planes
+planes_travel_times <- left_join(x = travel_times, y = planes, by = "tailnum") %>%
+  filter(seats > 50) %>% 
+  arrange(desc(travel_times))
 
+print(planes_travel_times)
+#We can tell that the most travelled plane's tailnumber is N328AA
+
+#Create a table for the most travelled plane
+most_travelled_flight <- flights %>% 
+  filter(tailnum == "N328AA") %>% 
+  group_by(dest) %>% 
+  count() %>% 
+  arrange(desc(n))
+
+print(most_travelled_flight)
 ```
 
 ## Problem 4: The `nycflights13` package includes a table (`weather`) that describes the weather during 2013. Use that table to answer the following questions:
 
-    -   What is the distribution of temperature (`temp`) in July 2013? Identify any important outliers in terms of the `wind_speed` variable.
+    -   What is the distribution of temperature (`temp`) in July 2013?
+    Identify any important outliers in terms of the `wind_speed` variable.
     -   What is the relationship between `dewp` and `humid`?
     -   What is the relationship between `precip` and `visib`?
 
 ```{r}
+#What is the distribution of temperature (`temp`) in July 2013?
 
+#Filter data for July 2013
+temp_July <- weather %>% 
+  filter(month == 7) %>% 
+  select(temp)
+
+#Distribution
+ggplot(temp_July, aes(x=temp)) +
+  geom_histogram(aes(y = ..density..), fill = "grey")+
+  geom_density(color = NA, fill = "lightblue", alpha = 0.5)+
+  labs(title = "Distribution of Temprature in July 2013")
+
+#Temperature in July 2013 is roughly normally distributed.
+
+#Find the outliers for "windspeed" variable
+ggplot(weather, aes(x=wind_speed)) +
+  geom_boxplot()
+
+skimr::skim(weather$wind_speed)
+
+#The outlier is 1048.361, which is also the 100 percentile.
+
+#What is the relationship between `dewp` and `humid`?
+ggplot(weather, aes(x=dewp, y=humid))+
+  geom_point()+
+  geom_smooth()
+
+#Positively correlated: when dewp level raises, it becomes more humid.
+
+#What is the relationship between `precip` and `visib`?
+ggplot(weather, aes(x=precip, y=visib))+
+  geom_point()+
+  geom_smooth()
+
+#Pattern not obvious: there is no relationship between `precip` and `visib`.
 ```
 
 ## Problem 5: Use the `flights` and `planes` tables to answer the following questions:
@@ -95,7 +185,41 @@ For the plane with the greatest number of flights and that had more than 50 seat
     -   Has the distribution of manufacturer changed over time as reflected by the airplanes flying from NYC in 2013? (Hint: you may need to use case_when() to recode the manufacturer name and collapse rare vendors into a category called Other.)
 
 ```{r}
+#How many planes have a missing date of manufacture?
+planes %>% 
+  filter(is.na(year)) %>% 
+  count(name = "plane_missing_manu_date")
 
+#What are the five most common manufacturers?
+common_manufacturers <- planes %>%
+  group_by(manufacturer) %>% 
+  count() %>% 
+  arrange(desc(n)) %>% 
+  head(., 5)
+print(common_manufacturers)
+
+#Has the distribution of manufacturer changed over time as reflected by the airplanes flying from NYC in 2013?
+
+#Recode the manufacturer name and collapse rare vendors into a category called Other
+planes_1 <- planes %>%  
+  mutate(manufacturer = ifelse(manufacturer %in% 
+                       c("BOEING","AIRBUS INDUSTRIE",
+                         "BOMBARDIER INC", "AIRBUS", "EMBRAER"),
+                       manufacturer, "OTHERS"))
+
+#Create a table of the distribution in each year
+distribution_long <- planes_1 %>% 
+  group_by(year) %>%
+  count(manufacturer, name = "num") 
+
+#Plot the distribution to see the trend
+ggplot(distribution_long, aes(x=year, y=num, fill = manufacturer))+
+  geom_bar(stat="identity")+
+  theme(legend.key.size = unit(0.3, 'cm'))
+
+#We can tell that there are indeed changes in distribution of manufacturers. 
+#For example, BOEING and AIRBUS INDUSTRIE raised around 2000.
+#Or "BOMBARDIER INC" and "EMBRAER" starting to take up market shares after 2000.
 ```
 
 ## Problem 6: Use the `flights` and `planes` tables to answer the following questions:
@@ -104,7 +228,19 @@ For the plane with the greatest number of flights and that had more than 50 seat
     -   How many airplanes that flew from New York City are included in the planes table?
 
 ```{r}
+#What is the oldest plane (specified by the tailnum variable) that flew from New York City airports in 2013?
+#I am not sure how the tailnum indicates the age of the plane. I assume the smaller the number the older the plane?
+planes_dist <-flights %>% 
+  group_by(tailnum) %>%
+  count() %>% 
+  print()
+#Then the oldest one is N0EGMQ.
 
+#How many airplanes that flew from New York City are included in the planes table?
+inner_join(x=planes_dist, y=planes, by = "tailnum")
+
+#There are 3322 rows in the joint table.
+#Therefore, of all the 4044 planes that flew from New York City, 3322 of them are included in the planes table.
 ```
 
 ## Problem 7: Use the `nycflights13` to answer the following questions:
@@ -113,13 +249,36 @@ For the plane with the greatest number of flights and that had more than 50 seat
     -   For each airline, plot the median arrival delay for each month and origin airport.
 
 ```{r}
+#What is the median arrival delay on a month-by-month basis in each airport?
+med_delay <- flights %>% 
+  group_by(month,origin) %>% 
+  summarize(med_delay = median(arr_delay, na.rm = TRUE))
+print(med_delay)
+  
+#For each airline, plot the median arrival delay for each month and origin airport.
+ggplot(med_delay, aes(x=month, y=med_delay, group = origin, fill = origin))+
+  geom_col(position = "dodge")+
+  scale_x_continuous(breaks = 1:12)
 
 ```
 
 ## Problem 8: Let's take a closer look at what carriers service the route to San Francisco International (SFO). Join the `flights` and `airlines` tables and count which airlines flew the most to SFO. Produce a new dataframe, `fly_into_sfo` that contains three variables: the `name` of the airline, e.g., `United Air Lines Inc.` not `UA`, the count (number) of times it flew to SFO, and the `percent` of the trips that that particular airline flew to SFO.
 
 ```{r}
+fly_into_sfo <-
+  
+  #join the two tables
+  full_join(x = flights, y = airlines, by = "carrier") %>%
+  
+  #group the fligths by airlines
+  group_by(name) %>%
+  summarize(count = sum(dest == "SFO"),
+            percent = round(count/n()*100,1)) %>%
+  
+  #remove the airlines that didn't fly to SFO
+  filter(count!=0)
 
+print(fly_into_sfo)
 ```
 
 And here is some bonus ggplot code to plot your dataframe
@@ -174,7 +333,6 @@ fly_into_sfo %>%
   # you never end up with a hanging `+` that awaits another ggplot layer
   NULL
  
- 
 ```
 
 ## Problem 9: Let's take a look at cancellations of flights to SFO. We create a new dataframe `cancellations` as follows
@@ -189,9 +347,15 @@ cancellations <- flights %>%
   # a cancelled flight is one with no `dep_time` 
   filter(is.na(dep_time))
 
+print(cancellations)
+
 ```
 
 I want you to think how we would organise our data manipulation to create the following plot. No need to write the code, just explain in words how you would go about it.
+
+1.  Group the cancelled flights by month carrier and airport origin.
+2.  Create a table that summarize the \# of cancelled flights in each month, carrierand airport origin.
+3.  Use geom_bar to create the bar chart and facet_wrap the plot by the above three dimensions.
 
 ![](images/sfo-cancellations.png)
 
@@ -208,7 +372,7 @@ The age gaps dataset includes "gender" columns, which always contain the values 
 The following is a data dictionary of the variables used
 
 | variable            | class     | description                                                                                             |
-|:--------------------|:----------|:--------------------------------------------------------------------------------------------------------|
+|:----------------|:----------------|:-------------------------------------|
 | movie_name          | character | Name of the film                                                                                        |
 | release_year        | integer   | Release year                                                                                            |
 | director            | character | Director of the film                                                                                    |
@@ -225,9 +389,7 @@ The following is a data dictionary of the variables used
 
 ```{r}
 
-age_gaps <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2023/2023-02-14/age_gaps.csv')
-
-
+age_gaps <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2023/2023-02-14/age_gaps.csv', show_col_types = FALSE)
 ```
 
 How would you explore this data set? Here are some ideas of tables/ graphs to help you with your analysis
@@ -250,8 +412,8 @@ There is a lot of explanatory text, comments, etc. You do not need these, so del
 # Details
 
 -   Who did you collaborate with: TYPE NAMES HERE
--   Approximately how much time did you spend on this problem set: ANSWER HERE
--   What, if anything, gave you the most trouble: ANSWER HERE
+-   Approximately how much time did you spend on this problem set: 6hrs
+-   What, if anything, gave you the most trouble: Not enough time to go through all the questions.
 
 **Please seek out help when you need it,** and remember the [15-minute rule](https://mam2022.netlify.app/syllabus/#the-15-minute-rule){target="_blank"}. You know enough R (and have enough examples of code from class and your readings) to be able to do this. If you get stuck, ask for help from others, post a question on Slack-- and remember that I am here to help too!
 
