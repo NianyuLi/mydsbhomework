@@ -3,6 +3,10 @@ title: "Homework 2"
 author: "Nianyu Li"
 date: "`r Sys.Date()`"
 output:
+  word_document:
+    toc: yes
+  pdf_document:
+    toc: yes
   html_document:
     theme: flatly
     highlight: zenburn
@@ -10,8 +14,6 @@ output:
     toc: yes
     toc_float: yes
     code_folding: show
-  pdf_document:
-    toc: yes
 ---
 
 ------------------------------------------------------------------------
@@ -52,7 +54,7 @@ glimpse(mass_shootings)
 ```
 
 | column(variable)     | description                                                                 |
-|----------------------|-----------------------------------------------------------------------------|
+|---------------------------|---------------------------------------------|
 | case                 | short name of incident                                                      |
 | year, month, day     | year, month, day in which the shooting occurred                             |
 | location             | city and state where the shooting occcurred                                 |
@@ -785,6 +787,52 @@ gdp_percap <- wb_data(country = "countries_only",
          GDPpercap = value)
 ```
 
+## 1. A stacked area chart that shows how your own country generated its electricity since 2000.
+
+You will use
+
+`geom_area(colour="grey90", alpha = 0.5, position = "fill")`
+
+```{r warning=FALSE}
+energy_china <- energy %>% 
+  
+  #Filter data for China
+  filter(country == "China") %>% 
+  
+  #select lines we need
+  select(year, 
+         biofuel, coal, gas, 
+         hydro, nuclear, oil,
+         other_renewable, solar, wind) %>% 
+  
+  #transform the table in to long format
+  pivot_longer(cols = c("biofuel", "coal", "gas", 
+         "hydro", "nuclear", "oil",
+         "other_renewable", "solar", "wind"),
+         names_to="energy_type",
+         values_to = "energy_usage")
+
+print(energy_china)
+
+#Create the stacked area chart
+energy_china %>% 
+  
+  ggplot()+
+  
+  aes(x = year,
+      y = energy_usage,
+      fill = energy_type)+
+  
+  geom_area(colour="grey90", alpha = 0.5, position = "fill")
+  
+```
+
+## 2. A scatter plot that looks at how CO2 per capita and GDP per capita are related
+
+
+
+## 3. A scatter plot that looks at how electricity usage (kWh) per capita/day GDP per capita are related
+
 Specific questions:
 
 1.  How would you turn `energy` to long, tidy format?
@@ -802,9 +850,9 @@ There is a lot of explanatory text, comments, etc. You do not need these, so del
 
 # Details
 
--   Who did you collaborate with: TYPE NAMES HERE
--   Approximately how much time did you spend on this problem set: ANSWER HERE
--   What, if anything, gave you the most trouble: ANSWER HERE
+-   Who did you collaborate with: I worked on it myself.
+-   Approximately how much time did you spend on this problem set: 8hrs
+-   What, if anything, gave you the most trouble: Not enough time.
 
 **Please seek out help when you need it,** and remember the [15-minute rule](https://dsb2023.netlify.app/syllabus/#the-15-minute-rule){target="_blank"}. You know enough R (and have enough examples of code from class and your readings) to be able to do this. If you get stuck, ask for help from others, post a question on Slack-- and remember that I am here to help too!
 
